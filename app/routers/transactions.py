@@ -1,3 +1,17 @@
 from fastapi import APIRouter
 
-router = APIRouter(prefix="/accounts", tags=["accounts"])
+from db import SessionDep
+from models.transactions import TransactionCreate
+from services.transactions import create_transaction, get_transaction_by_id
+
+router = APIRouter(prefix="/transactions", tags=["transactions"])
+
+
+@router.get("/{transaction_id}")
+def get_transaction(transaction_id: str, session: SessionDep):
+    return get_transaction_by_id(session, transaction_id)
+
+
+@router.post("/", status_code=201)
+def post_transaction(transaction: TransactionCreate, session: SessionDep):
+    return create_transaction(session, transaction)

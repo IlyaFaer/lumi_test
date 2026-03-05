@@ -4,16 +4,18 @@ from enum import Enum
 from datetime import datetime
 from sqlmodel import SQLModel, Field
 
+MAX_DESC_LEN = 150
+
 
 class TransactionType(str, Enum):
-    Debit = "debit"
-    Credit = "credit"
+    Debit = "DEBIT"
+    Credit = "CREDIT"
 
 
 class Transaction(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    description: str = Field(nullable=True, max_length=150)
+    description: str = Field(nullable=True, max_length=MAX_DESC_LEN)
 
 
 class TransactionEntry(SQLModel, table=True):
