@@ -3,6 +3,7 @@ from collections import Counter
 from fastapi import HTTPException
 
 from db.transactions import Transaction, TransactionEntry
+from sqlmodel import select
 
 
 def _validate_entries(entries):
@@ -39,32 +40,75 @@ def create_transaction(session, transaction_raw):
 
 def get_transaction_by_id(session, transaction_id):
     transaction = (
-        session.query(Transaction).filter(Transaction.id == transaction_id).first()
+        session.execute(
+            select(
+                Transaction.id.label("id"),
+                Transaction.timestamp.label("timestamp"),
+                Transaction.description.label("description"),
+            ).filter(Transaction.id == transaction_id)
+        )
+        .mappings()
+        .first()
     )
     entries = (
-        session.query(TransactionEntry)
-        .filter(TransactionEntry.transaction_id == transaction_id)
+        session.execute(
+            select(
+                TransactionEntry.id.label("id"),
+                TransactionEntry.account_id.label("account_id"),
+                TransactionEntry.type.label("type"),
+                TransactionEntry.amount.label("amount"),
+            ).filter(TransactionEntry.transaction_id == transaction_id)
+        )
+        .mappings()
         .all()
     )
     return {
-        "id": transaction.id,
-        "timestamp": transaction.timestamp,
-        "description": transaction.description,
-        "entries": [
-            {
-                "id": entry.id,
-                "account_id": entry.account_id,
-                "type": entry.type,
-                "amount": entry.amount,
-            }
-            for entry in entries
-        ],
+        "id": transaction["id"],
+        "date": transaction["timestamp"].isoformat(),
+        "description": transaction["description"],
+        "entries": entries,
     }
 
 
 def list_transactions_by_account_id(session, account_id):
-    return (
-        session.query(TransactionEntry)
-        .filter((TransactionEntry.account_id == account_id))
+    res = (
+        session.execute(
+            select(
+                TransactionEntry.id.label("id"),
+                TransactionEntry.account_id.label("account_id"),
+                TransactionEntry.type.label("type"),
+                TransactionEntry.amount.label("amount"),
+                Transaction.id.label("transaction_id"),
+                Transaction.timestamp.label("date"),
+                Transaction.description.label("description"),
+            )
+            .filter(TransactionEntry.account_id == account_id)
+            .join(Transaction, TransactionEntry.transaction_id == Transaction.id)
+        )
+        .mappings()
         .all()
     )
+
+    transactions = {}
+    for entry in res:
+        tid = entry["transaction_id"]
+        if tid not in transactions:
+            transactions[tid] = {
+                "id": tid,
+                "date": entry["date"].isoformat(),
+                "description": entry["description"],
+                "entries": [],
+            }
+
+        transactions[tid]["entries"].append(
+            {
+                "id": entry["id"],
+                "account_id": entry["account_id"],
+                "type": entry["type"],
+                "transaction_id": entry["transaction_id"],
+                "amount": entry["amount"],
+            }
+        )
+
+    res = [transaction for transaction in transactions.values()]
+    return res

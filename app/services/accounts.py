@@ -47,7 +47,12 @@ class BalanceQueryBuilder:
         )
 
     def select_account(self, account_id=None):
-        self._query = select(Account, func.sum(self.select_case()).label("balance"))
+        self._query = select(
+            Account.id.label("id"),
+            Account.name.label("name"),
+            Account.type.label("type"),
+            func.sum(self.select_case()).label("balance"),
+        )
         if account_id:
             self._query = self._query.filter(Account.id == account_id)
 
@@ -62,7 +67,13 @@ def create_account(session, account):
     session.add(account)
     session.commit()
     session.refresh(account)
-    return account
+
+    return {
+        "id": account.id,
+        "name": account.name,
+        "type": account.type,
+        "balance": 0,
+    }
 
 
 def get_account_by_id(session, account_id):
@@ -70,13 +81,7 @@ def get_account_by_id(session, account_id):
     builder.select_account(account_id)
     builder.join_entries()
 
-    res = session.execute(builder.query).first()
-    return {
-        "id": res[0].id,
-        "name": res[0].name,
-        "type": res[0].type,
-        "balance": res[1],
-    }
+    return session.execute(builder.query).mappings().first()
 
 
 def list_accounts(session):
@@ -84,13 +89,4 @@ def list_accounts(session):
     builder.select_account()
     builder.join_entries()
 
-    res = session.execute(builder.query).all()
-    return [
-        {
-            "id": r[0].id,
-            "name": r[0].name,
-            "type": r[0].type,
-            "balance": r[1],
-        }
-        for r in res
-    ]
+    return session.execute(builder.query).mappings().all()

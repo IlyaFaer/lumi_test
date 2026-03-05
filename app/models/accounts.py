@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -9,7 +10,7 @@ class AccountCreate(BaseModel):
 
 
 class AccountRead(BaseModel):
-    id: str
+    id: UUID
     name: str
     type: str
     balance: Decimal
