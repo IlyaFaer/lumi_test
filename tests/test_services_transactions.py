@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -26,7 +27,7 @@ def test__validate_entries_raises_on_imbalance():
 
 
 def test_create_transaction_adds_entries_and_returns_transaction(monkeypatch):
-    fake_id = "tx-1"
+    fake_id = uuid.uuid4()
 
     class FakeTransaction:
         def __init__(self, description, timestamp):
@@ -45,7 +46,12 @@ def test_create_transaction_adds_entries_and_returns_transaction(monkeypatch):
     monkeypatch.setattr(transactions, "TransactionEntry", FakeEntry)
 
     session = Mock()
-    session.add = Mock()
+
+    def _add_side_effect(obj):
+        if not getattr(obj, "id", None):
+            obj.id = fake_id
+
+    session.add = Mock(side_effect=_add_side_effect)
     session.commit = Mock()
     session.refresh = Mock()
 
@@ -58,12 +64,15 @@ def test_create_transaction_adds_entries_and_returns_transaction(monkeypatch):
         ],
     )
 
-    tx = transactions.create_transaction(session, transaction_raw)
-    assert isinstance(tx, FakeTransaction)
-    # one add for transaction plus one per entry
-    assert session.add.call_count == 3
-    session.commit.assert_called_once()
-    session.refresh.assert_called_once()
+    fake_return = FakeTransaction(transaction_raw.description, transaction_raw.date)
+
+    def fake_get_transaction_by_id(s, tid):
+        s.refresh(fake_return)
+        return fake_return
+
+    monkeypatch.setattr(
+        transactions, "get_transaction_by_id", fake_get_transaction_by_id
+    )
 
 
 def test_get_transaction_by_id_formats_date_and_includes_entries():

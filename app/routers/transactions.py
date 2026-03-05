@@ -15,5 +15,5 @@ def get_transaction(transaction_id: str, session: SessionDep) -> TransactionRead
 @router.post("/", status_code=201)
 def post_transaction(
     transaction: TransactionCreate, session: SessionDep
-) -> list[TransactionRead]:
+) -> TransactionRead:
     return create_transaction(session, transaction)

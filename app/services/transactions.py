@@ -34,8 +34,7 @@ def create_transaction(session, transaction_raw):
         session.add(transaction_entry)
 
     session.commit()
-    session.refresh(transaction)
-    return transaction
+    return get_transaction_by_id(session, transaction.id)
 
 
 def get_transaction_by_id(session, transaction_id):
