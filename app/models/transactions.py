@@ -1,4 +1,5 @@
 from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 from db.transactions import MAX_DESC_LEN

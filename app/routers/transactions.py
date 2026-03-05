@@ -8,7 +8,9 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 
 @router.get("/{transaction_id}")
-def get_transaction(transaction_id: str, session: SessionDep) -> TransactionRead:
+def get_transaction(
+    transaction_id: str, session: SessionDep
+) -> TransactionRead:
     return get_transaction_by_id(session, transaction_id)
 
 

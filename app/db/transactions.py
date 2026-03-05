@@ -1,8 +1,8 @@
-import uuid
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from datetime import datetime
 from sqlmodel import SQLModel, Field
+import uuid
 
 MAX_DESC_LEN = 150
 

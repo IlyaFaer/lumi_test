@@ -1,6 +1,6 @@
-import uuid
 from enum import Enum
 from sqlmodel import SQLModel, Field
+import uuid
 
 
 class AccountType(str, Enum):
