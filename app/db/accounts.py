@@ -4,10 +4,10 @@ from sqlmodel import SQLModel, Field
 
 
 class AccountType(str, Enum):
-    Cash = "cash"
-    Revenue = "revenue"
-    Expenses = "expenses"
-    Liability = "liability"
+    Cash = "CASH"
+    Revenue = "REVENUE"
+    Expenses = "EXPENSES"
+    Liability = "LIABILITY"
 
 
 class Account(SQLModel, table=True):

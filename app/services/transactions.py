@@ -1,7 +1,24 @@
+from collections import Counter
+
+from fastapi import HTTPException
+
 from db.transactions import Transaction, TransactionEntry
 
 
+def _validate_entries(entries):
+    c = Counter()
+    for e in entries:
+        c[e.type] += e.amount
+
+    if c["DEBIT"] != c["CREDIT"]:
+        raise HTTPException(
+            status_code=400, detail="Total DEBIT and CREDIT amounts must be equal!"
+        )
+
+
 def create_transaction(session, transaction_raw):
+    _validate_entries(transaction_raw.entries)
+
     transaction = Transaction(
         description=transaction_raw.description, timestamp=transaction_raw.date
     )
