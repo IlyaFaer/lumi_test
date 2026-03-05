@@ -38,7 +38,28 @@ def create_transaction(session, transaction_raw):
 
 
 def get_transaction_by_id(session, transaction_id):
-    return session.query(Transaction).filter(Transaction.id == transaction_id).first()
+    transaction = (
+        session.query(Transaction).filter(Transaction.id == transaction_id).first()
+    )
+    entries = (
+        session.query(TransactionEntry)
+        .filter(TransactionEntry.transaction_id == transaction_id)
+        .all()
+    )
+    return {
+        "id": transaction.id,
+        "timestamp": transaction.timestamp,
+        "description": transaction.description,
+        "entries": [
+            {
+                "id": entry.id,
+                "account_id": entry.account_id,
+                "type": entry.type,
+                "amount": entry.amount,
+            }
+            for entry in entries
+        ],
+    }
 
 
 def list_transactions_by_account_id(session, account_id):

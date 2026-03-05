@@ -4,7 +4,7 @@ from sqlmodel import SQLModel, Field
 
 
 class AccountType(str, Enum):
-    Cash = "CASH"
+    Asset = "ASSET"
     Revenue = "REVENUE"
     Expenses = "EXPENSES"
     Liability = "LIABILITY"
