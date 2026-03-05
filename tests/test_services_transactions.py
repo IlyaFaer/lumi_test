@@ -1,0 +1,127 @@
+import datetime
+from types import SimpleNamespace
+from unittest.mock import Mock
+
+import pytest
+
+from services import transactions
+
+
+def test__validate_entries_passes():
+    entries = [
+        SimpleNamespace(type="DEBIT", amount=100),
+        SimpleNamespace(type="CREDIT", amount=100),
+    ]
+    # should not raise
+    transactions._validate_entries(entries)
+
+
+def test__validate_entries_raises_on_imbalance():
+    entries = [
+        SimpleNamespace(type="DEBIT", amount=100),
+        SimpleNamespace(type="CREDIT", amount=50),
+    ]
+    with pytest.raises(Exception):
+        transactions._validate_entries(entries)
+
+
+def test_create_transaction_adds_entries_and_returns_transaction(monkeypatch):
+    fake_id = "tx-1"
+
+    class FakeTransaction:
+        def __init__(self, description, timestamp):
+            self.description = description
+            self.timestamp = timestamp
+            self.id = fake_id
+
+    class FakeEntry:
+        def __init__(self, transaction_id, account_id, type, amount):
+            self.transaction_id = transaction_id
+            self.account_id = account_id
+            self.type = type
+            self.amount = amount
+
+    monkeypatch.setattr(transactions, "Transaction", FakeTransaction)
+    monkeypatch.setattr(transactions, "TransactionEntry", FakeEntry)
+
+    session = Mock()
+    session.add = Mock()
+    session.commit = Mock()
+    session.refresh = Mock()
+
+    transaction_raw = SimpleNamespace(
+        description="desc",
+        date="2023-01-01",
+        entries=[
+            SimpleNamespace(accountId="a1", type="DEBIT", amount=100),
+            SimpleNamespace(accountId="a2", type="CREDIT", amount=100),
+        ],
+    )
+
+    tx = transactions.create_transaction(session, transaction_raw)
+    assert isinstance(tx, FakeTransaction)
+    # one add for transaction plus one per entry
+    assert session.add.call_count == 3
+    session.commit.assert_called_once()
+    session.refresh.assert_called_once()
+
+
+def test_get_transaction_by_id_formats_date_and_includes_entries():
+    session = Mock()
+    ts = datetime.datetime(2023, 1, 1, 12, 0)
+    tx_row = {"id": "tx-1", "timestamp": ts, "description": "desc"}
+    entry_row = {"account_id": "a1", "type": "DEBIT", "amount": 100}
+
+    exec_ret = Mock()
+    exec_ret.mappings.return_value.first.return_value = tx_row
+    # for entries query
+    exec_ret2 = Mock()
+    exec_ret2.mappings.return_value.all.return_value = [entry_row]
+
+    # session.execute called twice; configure side effects
+    session.execute.side_effect = [exec_ret, exec_ret2]
+
+    res = transactions.get_transaction_by_id(session, "tx-1")
+    assert res["id"] == "tx-1"
+    assert res["description"] == "desc"
+    assert res["date"] == ts.isoformat()
+    assert isinstance(res["entries"], list)
+    assert res["entries"][0]["account_id"] == "a1"
+
+
+def test_list_transactions_by_account_id_groups_entries_by_tx():
+    session = Mock()
+    ts = datetime.datetime(2023, 1, 1, 12, 0)
+
+    rows = [
+        {
+            "id": "e1",
+            "account_id": "a1",
+            "type": "DEBIT",
+            "amount": 100,
+            "transaction_id": "tx1",
+            "date": ts,
+            "description": "t1",
+        },
+        {
+            "id": "e2",
+            "account_id": "a1",
+            "type": "CREDIT",
+            "amount": 50,
+            "transaction_id": "tx2",
+            "date": ts,
+            "description": "t2",
+        },
+    ]
+
+    exec_ret = Mock()
+    exec_ret.mappings.return_value.all.return_value = rows
+    session.execute.return_value = exec_ret
+
+    res = transactions.list_transactions_by_account_id(session, "a1")
+    # should produce two grouped transactions
+    assert any(tx["id"] == "tx1" for tx in res)
+    assert any(tx["id"] == "tx2" for tx in res)
+    # entries should be lists
+    for tx in res:
+        assert "entries" in tx and isinstance(tx["entries"], list)
