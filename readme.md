@@ -28,6 +28,10 @@ Tests are ran with `pytest` and consist of 2 parts:
 - `unit` - isolated business logic tests
 - `integration` - high level tests that use a test database (created and dropped on the tests run)
 
+To run tests, execute a cmd:
+```pytest -q```
+From the root of the repo.
+
 # TODO
 - SQLAlchemy async could be used
 - More tests could be written and `coverage` added
