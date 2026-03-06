@@ -1,32 +1,39 @@
 from collections import Counter
 
 from fastapi import HTTPException
+from sqlmodel import Session, select
 
 from db.transactions import Transaction, TransactionEntry
-from sqlmodel import select
+from models.transactions import TransactionCreate
 
 
-def _validate_entries(entries):
+def _validate_entries(entries: list[TransactionCreate]):
+    """Check that debit sum is equal to credit sum for this transaction."""
     c = Counter()
     for e in entries:
         c[e.type] += e.amount
 
     if c["DEBIT"] != c["CREDIT"]:
         raise HTTPException(
-            status_code=400, detail="Total DEBIT and CREDIT amounts must be equal!"
+            status_code=400,
+            detail="Total DEBIT and CREDIT amounts must be equal!",
         )
 
 
-def create_transaction(session, transaction_raw):
+def create_transaction(
+    session: Session, transaction_raw: TransactionCreate
+) -> dict:
+    """Create a new transaction with the given entries."""
     _validate_entries(transaction_raw.entries)
 
-    transaction = Transaction(
+    txn = Transaction(
         description=transaction_raw.description, timestamp=transaction_raw.date
     )
-    session.add(transaction)
+    session.add(txn)
+
     for entry in transaction_raw.entries:
         transaction_entry = TransactionEntry(
-            transaction_id=transaction.id,
+            transaction_id=txn.id,
             account_id=entry.accountId,
             type=entry.type,
             amount=entry.amount,
@@ -34,11 +41,12 @@ def create_transaction(session, transaction_raw):
         session.add(transaction_entry)
 
     session.commit()
-    return get_transaction_by_id(session, transaction.id)
+    return get_transaction_by_id(session, txn.id)
 
 
-def get_transaction_by_id(session, transaction_id):
-    transaction = (
+def get_transaction_by_id(session: Session, transaction_id: str) -> dict:
+    """Return a transaction and all of its entries by the given id."""
+    txn = (
         session.execute(
             select(
                 Transaction.id.label("id"),
@@ -62,15 +70,18 @@ def get_transaction_by_id(session, transaction_id):
         .all()
     )
     return {
-        "id": transaction["id"],
-        "date": transaction["timestamp"].isoformat(),
-        "description": transaction["description"],
+        "id": txn["id"],
+        "date": txn["timestamp"].isoformat(),
+        "description": txn["description"],
         "entries": entries,
     }
 
 
-def list_transactions_by_account_id(session, account_id):
-    res = (
+def list_transactions_by_account_id(
+    session: Session, account_id: str
+) -> list[dict]:
+    """Return entries and parent transactions impacted the given account."""
+    entries = (
         session.execute(
             select(
                 TransactionEntry.id.label("id"),
@@ -82,14 +93,16 @@ def list_transactions_by_account_id(session, account_id):
                 Transaction.description.label("description"),
             )
             .filter(TransactionEntry.account_id == account_id)
-            .join(Transaction, TransactionEntry.transaction_id == Transaction.id)
+            .join(
+                Transaction, TransactionEntry.transaction_id == Transaction.id
+            )
         )
         .mappings()
         .all()
     )
 
     transactions = {}
-    for entry in res:
+    for entry in entries:
         tid = entry["transaction_id"]
         if tid not in transactions:
             transactions[tid] = {
@@ -108,6 +121,4 @@ def list_transactions_by_account_id(session, account_id):
                 "amount": entry["amount"],
             }
         )
-
-    res = [transaction for transaction in transactions.values()]
-    return res
+    return [transaction for transaction in transactions.values()]

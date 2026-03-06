@@ -1,6 +1,5 @@
 import atexit
 from pathlib import Path
-import uuid
 import sys
 
 from sqlalchemy import text
@@ -8,39 +7,28 @@ from sqlmodel import SQLModel, create_engine
 from fastapi.testclient import TestClient
 import pytest
 
-# the original path
-root = Path(__file__).resolve().parent.parent.joinpath("app")
-if str(root) not in sys.path:
-    sys.path.insert(0, str(root))
+DRIVER = "postgresql+psycopg"
+DB_HOST = "postgres:postgres@127.0.0.1:5432"
+TEST_DB_NAME = "luminary_test"
 
-# maintenance connection
-ADMIN_DB_URL = "postgresql+psycopg://postgres:postgres@127.0.0.1:5432/postgres"
-
-# create test database
-_admin_engine = create_engine(ADMIN_DB_URL, isolation_level="AUTOCOMMIT")
-_test_db_name = f"luminary_test_{uuid.uuid4().hex[:8]}"
-with _admin_engine.connect() as conn:
-    conn.execute(text(f'CREATE DATABASE "{_test_db_name}"'))
-
-TEST_DB_URL = (
-    "postgresql+psycopg://postgres:postgres" f"@127.0.0.1:5432/{_test_db_name}"
-)
-_test_engine = create_engine(TEST_DB_URL)
-
-# create tables in the test DB
-SQLModel.metadata.create_all(_test_engine)
-
-# patch the db module so startup uses the test DB.
-import db as db_module  # noqa: E402
-
-db_module.engine = _test_engine
+ADMIN_DB_URL = f"{DRIVER}://{DB_HOST}/postgres"
+TEST_DB_URL = f"{DRIVER}://{DB_HOST}/{TEST_DB_NAME}"
 
 
-# drop db on exit
-def _teardown():
+@pytest.fixture(scope="session")
+def client():
+    """Test client fixture."""
+    from main import app
+
+    with TestClient(app) as c:
+        yield c
+
+
+def teardown():
+    """Drop the test db on exit."""
     try:
-        _test_engine.dispose()
-        with _admin_engine.connect() as conn:
+        test_engine.dispose()
+        with admin_engine.connect() as conn:
             conn.execute(
                 text(
                     (
@@ -49,19 +37,34 @@ def _teardown():
                         "pid <> pg_backend_pid()"
                     )
                 ),
-                {"d": _test_db_name},
+                {"d": TEST_DB_NAME},
             )
-            conn.execute(text(f'DROP DATABASE IF EXISTS "{_test_db_name}"'))
+            conn.execute(text(f'DROP DATABASE IF EXISTS "{TEST_DB_NAME}"'))
     finally:
-        _admin_engine.dispose()
+        admin_engine.dispose()
 
 
-atexit.register(_teardown)
+def setup():
+    """Create a test database and engines."""
+    admin_engine = create_engine(ADMIN_DB_URL, isolation_level="AUTOCOMMIT")
+
+    with admin_engine.connect() as conn:
+        conn.execute(text(f'CREATE DATABASE "{TEST_DB_NAME}"'))
+
+    test_engine = create_engine(TEST_DB_URL)
+    SQLModel.metadata.create_all(test_engine)
+    return admin_engine, test_engine
 
 
-@pytest.fixture(scope="session")
-def client():
-    from main import app
+# original path
+root = Path(__file__).resolve().parent.parent.joinpath("app")
+if str(root) not in sys.path:
+    sys.path.insert(0, str(root))
 
-    with TestClient(app) as c:
-        yield c
+admin_engine, test_engine = setup()
+
+# patch the db module so startup uses the test DB
+import db as db_module  # noqa: E402
+
+db_module.engine = test_engine
+atexit.register(teardown)
