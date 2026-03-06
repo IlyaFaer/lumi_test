@@ -5,7 +5,7 @@ from .conftest import client
 
 
 def test_account_create(client):
-    r = client.post("/accounts/", json={"name": "Cash", "type": "ASSET"})
+    r = client.post("/api/accounts/", json={"name": "Cash", "type": "ASSET"})
     assert r.status_code == 201
 
     data = r.json()
@@ -15,8 +15,8 @@ def test_account_create(client):
 
 
 def test_transaction_create_and_retrieve(client):
-    r1 = client.post("/accounts/", json={"name": "A1", "type": "ASSET"})
-    r2 = client.post("/accounts/", json={"name": "A2", "type": "LIABILITY"})
+    r1 = client.post("/api/accounts/", json={"name": "A1", "type": "ASSET"})
+    r2 = client.post("/api/accounts/", json={"name": "A2", "type": "LIABILITY"})
     a1 = r1.json()["id"]
     a2 = r2.json()["id"]
 
@@ -28,13 +28,13 @@ def test_transaction_create_and_retrieve(client):
             {"accountId": a2, "amount": 100.0, "type": "CREDIT"},
         ],
     }
-    r = client.post("/transactions/", json=payload)
+    r = client.post("/api/transactions/", json=payload)
     assert r.status_code == 201
 
     tx = r.json()
     tx_id = tx["id"]
 
-    got = client.get(f"/transactions/{tx_id}")
+    got = client.get(f"/api/transactions/{tx_id}")
     assert got.status_code == 200
 
     data = got.json()
@@ -44,8 +44,8 @@ def test_transaction_create_and_retrieve(client):
 
 
 def test_unbalanced_transaction(client):
-    r1 = client.post("/accounts/", json={"name": "B1", "type": "ASSET"})
-    r2 = client.post("/accounts/", json={"name": "B2", "type": "LIABILITY"})
+    r1 = client.post("/api/accounts/", json={"name": "B1", "type": "ASSET"})
+    r2 = client.post("/api/accounts/", json={"name": "B2", "type": "LIABILITY"})
     payload = {
         "description": "desc" * 10,
         "entries": [
@@ -53,19 +53,19 @@ def test_unbalanced_transaction(client):
             {"accountId": r2.json()["id"], "amount": 50.0, "type": "CREDIT"},
         ],
     }
-    r = client.post("/transactions/", json=payload)
+    r = client.post("/api/transactions/", json=payload)
     assert r.status_code == 400
     assert "Total DEBIT and CREDIT" in r.json().get("detail", "")
 
 
 def test_balance_multiple_transactions(client):
-    ra = client.post("/accounts/", json={"name": "AssetAcct", "type": "ASSET"})
-    rb = client.post("/accounts/", json={"name": "LiabAcct", "type": "LIABILITY"})
+    ra = client.post("/api/accounts/", json={"name": "AssetAcct", "type": "ASSET"})
+    rb = client.post("/api/accounts/", json={"name": "LiabAcct", "type": "LIABILITY"})
     a = ra.json()["id"]
     b = rb.json()["id"]
 
     client.post(
-        "/transactions/",
+        "/api/transactions/",
         json={
             "description": "desc" * 10,
             "timestamp": datetime(2026, 12, 12).isoformat(),
@@ -76,7 +76,7 @@ def test_balance_multiple_transactions(client):
         },
     )
     client.post(
-        "/transactions/",
+        "/api/transactions/",
         json={
             "description": "desc" * 10,
             "timestamp": datetime(2026, 12, 12).isoformat(),
@@ -87,8 +87,8 @@ def test_balance_multiple_transactions(client):
         },
     )
 
-    ga = client.get(f"/accounts/{a}")
-    gb = client.get(f"/accounts/{b}")
+    ga = client.get(f"/api/accounts/{a}")
+    gb = client.get(f"/api/accounts/{b}")
     assert ga.status_code == 200
     assert gb.status_code == 200
 

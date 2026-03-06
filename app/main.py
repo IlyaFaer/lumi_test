@@ -3,8 +3,8 @@ from fastapi import FastAPI
 from routers import accounts, transactions
 
 app = FastAPI()
-app.include_router(accounts.router)
-app.include_router(transactions.router)
+app.include_router(accounts.router, prefix="/api")
+app.include_router(transactions.router, prefix="/api")
 
 
 @app.on_event("startup")
