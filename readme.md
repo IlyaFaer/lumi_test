@@ -27,3 +27,15 @@ For dependencies management, the app uses `poetry`.
 Tests are ran with `pytest` and consist of 2 parts:
 - `unit` - isolated business logic tests
 - `integration` - high level tests that use a test database (created and dropped on the tests run)
+
+# TODO
+- SQLAlchemy async could be used
+- More tests could be written and `coverage` added
+- Variables and names could be shorted, but that's a big question - AI agents (if used in the company) will understand the code better with system metaphor naming, long and descriptive.
+- Development and production dependencies could be separated in `poetry` index.
+- Docker configurations could ignore testing and some other files in production (at my current job, we use 2 different compose files - one for testing, one for production).
+- End-to-end tests could be written - considering it's money related functionality it makes sense to run entire user scenarios in testing.
+- Again, considering it's money related functionality, makes sense to do formal algorithm verification. There are automated tools, where you describe your algorithm with a logic language, and the system runs all the possible variations to test this algorithm - good for validation and modelling of very edge cases. I myself never used those tools yet, but I build finite state machines or state-transition tables manually in critical cases.
+
+# Commit Messages
+For commit messages, I usually follow Conventional Commits standard. Did it here (without scope though, as I did a lot of things at the same time in `accounts` and `transactions`).
