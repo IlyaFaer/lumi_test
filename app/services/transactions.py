@@ -1,5 +1,6 @@
 from collections import Counter
 
+import sqlalchemy
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
@@ -12,6 +13,15 @@ def _validate_entries(entries: list[TransactionCreate]):
     c = Counter()
     for e in entries:
         c[e.type] += e.amount
+
+    if "DEBIT" not in c or "CREDIT" not in c:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Transaction must have at least one"
+                " DEBIT and one CREDIT entry!"
+            ),
+        )
 
     if c["DEBIT"] != c["CREDIT"]:
         raise HTTPException(
@@ -40,7 +50,15 @@ def create_transaction(
         )
         session.add(transaction_entry)
 
-    session.commit()
+    try:
+        session.commit()
+    except sqlalchemy.exc.IntegrityError:
+        session.rollback()
+
+        raise HTTPException(
+            status_code=400,
+            detail="Attempt to make a transaction on non-existing account.",
+        )
     return get_transaction_by_id(session, txn.id)
 
 
@@ -57,6 +75,10 @@ def get_transaction_by_id(session: Session, transaction_id: str) -> dict:
         .mappings()
         .first()
     )
+    if txn is None:
+        raise HTTPException(
+            status_code=404, detail="Transaction with the given id not found!"
+        )
     entries = (
         session.execute(
             select(

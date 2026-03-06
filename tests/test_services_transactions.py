@@ -1,14 +1,14 @@
 import datetime
-import uuid
 from types import SimpleNamespace
 from unittest.mock import Mock
+import uuid
 
 import pytest
 
 from services import transactions
 
 
-def test__validate_entries_passes():
+def test__validate_entries():
     entries = [
         SimpleNamespace(type="DEBIT", amount=100),
         SimpleNamespace(type="CREDIT", amount=100),
@@ -17,7 +17,7 @@ def test__validate_entries_passes():
     transactions._validate_entries(entries)
 
 
-def test__validate_entries_raises_on_imbalance():
+def test__validate_entries_imbalance():
     entries = [
         SimpleNamespace(type="DEBIT", amount=100),
         SimpleNamespace(type="CREDIT", amount=50),
@@ -26,28 +26,32 @@ def test__validate_entries_raises_on_imbalance():
         transactions._validate_entries(entries)
 
 
-def test_create_transaction_adds_entries_and_returns_transaction(monkeypatch):
+def test_create_transaction(monkeypatch):
     fake_id = uuid.uuid4()
 
-    class FakeTransaction:
+    class TransactionMock:
         def __init__(self, description, timestamp):
             self.description = description
             self.timestamp = timestamp
             self.id = fake_id
 
-    class FakeEntry:
+    class EntryMock:
         def __init__(self, transaction_id, account_id, type, amount):
             self.transaction_id = transaction_id
             self.account_id = account_id
             self.type = type
             self.amount = amount
 
-    monkeypatch.setattr(transactions, "Transaction", FakeTransaction)
-    monkeypatch.setattr(transactions, "TransactionEntry", FakeEntry)
+    monkeypatch.setattr(transactions, "Transaction", TransactionMock)
+    monkeypatch.setattr(transactions, "TransactionEntry", EntryMock)
 
     session = Mock()
 
     def _add_side_effect(obj):
+        """
+        SQLAlchemy will try to re-read the data and will drop our test id.
+        The side effect prevents it.
+        """
         if not getattr(obj, "id", None):
             obj.id = fake_id
 
@@ -64,18 +68,21 @@ def test_create_transaction_adds_entries_and_returns_transaction(monkeypatch):
         ],
     )
 
-    fake_return = FakeTransaction(transaction_raw.description, transaction_raw.date)
+    fake_return = TransactionMock(
+        transaction_raw.description,
+        transaction_raw.date,
+    )
 
-    def fake_get_transaction_by_id(s, tid):
+    def get_transaction_by_id_mock(s, tid):
         s.refresh(fake_return)
         return fake_return
 
     monkeypatch.setattr(
-        transactions, "get_transaction_by_id", fake_get_transaction_by_id
+        transactions, "get_transaction_by_id", get_transaction_by_id_mock
     )
 
 
-def test_get_transaction_by_id_formats_date_and_includes_entries():
+def test_get_transaction_by_id():
     session = Mock()
     ts = datetime.datetime(2023, 1, 1, 12, 0)
     tx_row = {"id": "tx-1", "timestamp": ts, "description": "desc"}
@@ -83,11 +90,10 @@ def test_get_transaction_by_id_formats_date_and_includes_entries():
 
     exec_ret = Mock()
     exec_ret.mappings.return_value.first.return_value = tx_row
-    # for entries query
+
     exec_ret2 = Mock()
     exec_ret2.mappings.return_value.all.return_value = [entry_row]
 
-    # session.execute called twice; configure side effects
     session.execute.side_effect = [exec_ret, exec_ret2]
 
     res = transactions.get_transaction_by_id(session, "tx-1")
@@ -98,7 +104,7 @@ def test_get_transaction_by_id_formats_date_and_includes_entries():
     assert res["entries"][0]["account_id"] == "a1"
 
 
-def test_list_transactions_by_account_id_groups_entries_by_tx():
+def test_list_transactions_by_account_id():
     session = Mock()
     ts = datetime.datetime(2023, 1, 1, 12, 0)
 
@@ -128,9 +134,7 @@ def test_list_transactions_by_account_id_groups_entries_by_tx():
     session.execute.return_value = exec_ret
 
     res = transactions.list_transactions_by_account_id(session, "a1")
-    # should produce two grouped transactions
     assert any(tx["id"] == "tx1" for tx in res)
     assert any(tx["id"] == "tx2" for tx in res)
-    # entries should be lists
     for tx in res:
         assert "entries" in tx and isinstance(tx["entries"], list)

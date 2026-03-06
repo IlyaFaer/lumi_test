@@ -3,3 +3,23 @@ __pycache__/
 *.pyo
 *.pyd
 .pytest_cache/
+
+# IDE / editor directories and files
+.vscode/
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# Vim swap files
+*.swp
+
+# macOS Finder
+.DS_Store

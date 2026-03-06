@@ -1,25 +1,26 @@
+from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, conlist
 
 from db.transactions import MAX_DESC_LEN
 
 
 class TransactionEntryCreate(BaseModel):
     accountId: UUID
-    amount: float
+    amount: Decimal = Field(..., gt=0)
     type: str
 
 
 class TransactionCreate(BaseModel):
-    description: str | None = Field(default=None, max_length=MAX_DESC_LEN)
+    description: str = Field(..., min_length=30, max_length=MAX_DESC_LEN)
     date: str | None = Field(default=None)
-    entries: list[TransactionEntryCreate]
+    entries: conlist(TransactionEntryCreate, min_length=2)
 
 
 class TransactionEntryRead(BaseModel):
     account_id: UUID
-    amount: float
+    amount: Decimal
     type: str
 
 

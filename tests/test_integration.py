@@ -21,7 +21,7 @@ def test_transaction_create_and_retrieve(client):
     a2 = r2.json()["id"]
 
     payload = {
-        "description": "initial",
+        "description": "desc" * 10,
         "date": "2026-03-05T00:00:00Z",
         "entries": [
             {"accountId": a1, "amount": 100.0, "type": "DEBIT"},
@@ -40,17 +40,18 @@ def test_transaction_create_and_retrieve(client):
     data = got.json()
     assert data["id"] == tx_id
     assert isinstance(data["entries"], list)
-    assert sum(e["amount"] for e in data["entries"]) == 200
+    assert sum(Decimal(e["amount"]) for e in data["entries"]) == 200
 
 
 def test_unbalanced_transaction(client):
     r1 = client.post("/accounts/", json={"name": "B1", "type": "ASSET"})
     r2 = client.post("/accounts/", json={"name": "B2", "type": "LIABILITY"})
     payload = {
+        "description": "desc" * 10,
         "entries": [
             {"accountId": r1.json()["id"], "amount": 100.0, "type": "DEBIT"},
             {"accountId": r2.json()["id"], "amount": 50.0, "type": "CREDIT"},
-        ]
+        ],
     }
     r = client.post("/transactions/", json=payload)
     assert r.status_code == 400
@@ -66,7 +67,7 @@ def test_balance_multiple_transactions(client):
     client.post(
         "/transactions/",
         json={
-            "description": "desc",
+            "description": "desc" * 10,
             "timestamp": datetime(2026, 12, 12).isoformat(),
             "entries": [
                 {"accountId": a, "amount": 100.0, "type": "DEBIT"},
@@ -77,7 +78,7 @@ def test_balance_multiple_transactions(client):
     client.post(
         "/transactions/",
         json={
-            "description": "desc",
+            "description": "desc" * 10,
             "timestamp": datetime(2026, 12, 12).isoformat(),
             "entries": [
                 {"accountId": b, "amount": 25.0, "type": "DEBIT"},

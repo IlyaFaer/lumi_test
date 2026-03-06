@@ -1,8 +1,9 @@
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from sqlmodel import SQLModel, Field
 import uuid
+
+from sqlmodel import SQLModel, Field
 
 MAX_DESC_LEN = 150
 
@@ -15,7 +16,7 @@ class TransactionType(str, Enum):
 class Transaction(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    description: str = Field(nullable=True, max_length=MAX_DESC_LEN)
+    description: str = Field(..., max_length=MAX_DESC_LEN)
 
 
 class TransactionEntry(SQLModel, table=True):

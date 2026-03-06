@@ -1,11 +1,11 @@
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AccountCreate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1)
     type: str
 
 

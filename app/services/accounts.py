@@ -1,5 +1,7 @@
 from typing import Any
 
+from fastapi import HTTPException
+import sqlalchemy
 from sqlalchemy import case, func, select
 from sqlalchemy.sql.expression import Case
 from sqlalchemy.sql.selectable import Select
@@ -80,18 +82,29 @@ class BalanceQueryBuilder:
         if account_id:
             self._query = self._query.filter(Account.id == account_id)
 
-    def join_entries(self):
+    def join_entries(self, outer: bool = False):
         """Build JOIN and GROUP BY clauses."""
         self._query = self._query.join(
-            TransactionEntry, Account.id == TransactionEntry.account_id
-        ).group_by(Account.id)
+            TransactionEntry,
+            Account.id == TransactionEntry.account_id,
+            isouter=outer,
+        )
+
+        self._query = self._query.group_by(Account.id)
 
 
 def create_account(session: Session, account: AccountCreate) -> dict:
     """Create a new account in the database."""
     account = Account(name=account.name, type=account.type)
     session.add(account)
-    session.commit()
+    try:
+        session.commit()
+    except sqlalchemy.exc.IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"Account with the name '{account.name}' already exists.",
+        )
     session.refresh(account)
 
     return {
@@ -108,13 +121,19 @@ def get_account_by_id(session: Session, account_id: str) -> dict:
     builder.select_account(account_id)
     builder.join_entries()
 
-    return session.execute(builder.query).mappings().first()
+    res = session.execute(builder.query).mappings().first()
+    if res is None:
+        raise HTTPException(
+            detail="Account with the given id is not found.",
+            status_code=404,
+        )
+    return res
 
 
 def list_accounts(session: Session) -> list[dict]:
     """List all the accounts."""
     builder = BalanceQueryBuilder()
     builder.select_account()
-    builder.join_entries()
+    builder.join_entries(outer=True)
 
     return session.execute(builder.query).mappings().all()
