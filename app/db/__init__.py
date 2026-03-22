@@ -12,7 +12,7 @@ from .transactions import (  # noqa: F401
 )
 
 
-db_url = "postgresql+psycopg://postgres:postgres@db:5432/luminary"
+db_url = "postgresql+psycopg://postgres:postgres@db_luminary:5432/luminary"
 engine = create_engine(db_url)
 
 
