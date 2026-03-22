@@ -35,16 +35,10 @@ class BalanceQueryBuilder:
         different variants of credit/debit sum meaning.
         """
         asset_or_expense = Account.type.in_(
-            [
-                AccountType.Asset,
-                AccountType.Expenses,
-            ]
+            [AccountType.Asset, AccountType.Expenses]
         )
         liability_or_revenue = Account.type.in_(
-            [
-                AccountType.Liability,
-                AccountType.Revenue,
-            ]
+            [AccountType.Liability, AccountType.Revenue]
         )
 
         return case(
@@ -115,19 +109,16 @@ def create_account(session: Session, account: AccountCreate) -> dict:
     }
 
 
-def get_account_by_id(session: Session, account_id: str) -> dict:
+def retrieve_account(session: Session, account_id: str) -> dict:
     """Read a single account by its id."""
     builder = BalanceQueryBuilder()
     builder.select_account(account_id)
-    builder.join_entries()
+    builder.join_entries(outer=True)
 
-    res = session.execute(builder.query).mappings().first()
-    if res is None:
-        raise HTTPException(
-            detail="Account with the given id is not found.",
-            status_code=404,
-        )
-    return res
+    acc = session.execute(builder.query).mappings().first()
+    if acc is None:
+        raise AccountNotFoundException(account_id=account_id)
+    return acc
 
 
 def list_accounts(session: Session) -> list[dict]:
@@ -137,3 +128,10 @@ def list_accounts(session: Session) -> list[dict]:
     builder.join_entries(outer=True)
 
     return session.execute(builder.query).mappings().all()
+
+
+class AccountNotFoundException(Exception):
+    def __init__(self, account_id: str):
+        self.value = account_id
+
+        super().__init__()

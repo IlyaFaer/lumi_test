@@ -8,22 +8,34 @@ import pytest
 from services import transactions
 
 
-def test__validate_entries():
-    entries = [
-        SimpleNamespace(type="DEBIT", amount=100),
-        SimpleNamespace(type="CREDIT", amount=100),
-    ]
-    # should not raise
-    transactions._validate_entries(entries)
-
-
-def test__validate_entries_imbalance():
-    entries = [
-        SimpleNamespace(type="DEBIT", amount=100),
-        SimpleNamespace(type="CREDIT", amount=50),
-    ]
-    with pytest.raises(Exception):
+class TestTransactionValidation:
+    def test__validate_entries(self):
+        entries = [
+            SimpleNamespace(type="DEBIT", amount=100),
+            SimpleNamespace(type="CREDIT", amount=100),
+        ]
+        # should not raise
         transactions._validate_entries(entries)
+
+    def test__validate_entries_imbalance(self):
+        entries = [
+            SimpleNamespace(type="DEBIT", amount=100),
+            SimpleNamespace(type="CREDIT", amount=50),
+        ]
+        with pytest.raises(Exception) as exc:
+            transactions._validate_entries(entries)
+
+        assert "amounts must be equal" in str(exc.value)
+
+    def test_entries_not_even(self, client):
+        entries = [
+            SimpleNamespace(type="DEBIT", amount=100),
+            SimpleNamespace(type="DEBIT", amount=70),
+        ]
+        with pytest.raises(Exception) as exc:
+            transactions._validate_entries(entries)
+
+        assert "at least one DEBIT" in str(exc.value)
 
 
 def test_create_transaction(monkeypatch):

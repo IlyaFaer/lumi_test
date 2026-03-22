@@ -45,7 +45,7 @@ def test_get_account_by_id():
     exec_ret.mappings.return_value.first.return_value = mapping
     session.execute.return_value = exec_ret
 
-    res = accounts.get_account_by_id(session, mapping["id"])
+    res = accounts.retrieve_account(session, mapping["id"])
     assert res == mapping
 
 

@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from db import SessionDep
 from models.accounts import AccountCreate, AccountRead
 from models.transactions import TransactionRead
-from services.accounts import create_account, get_account_by_id, list_accounts
+from services.accounts import create_account, retrieve_account, list_accounts
 from services.transactions import list_transactions_by_account_id
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -21,7 +21,7 @@ def post_account(session: SessionDep, account: AccountCreate) -> AccountRead:
 
 @router.get("/{account_id}")
 def get_account(account_id: str, session: SessionDep) -> AccountRead:
-    return get_account_by_id(session, account_id)
+    return retrieve_account(session, account_id)
 
 
 @router.get("/{account_id}/transactions")

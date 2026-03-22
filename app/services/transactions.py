@@ -1,4 +1,5 @@
 from collections import Counter
+import re
 
 import sqlalchemy
 from fastapi import HTTPException
@@ -6,6 +7,7 @@ from sqlmodel import Session, select
 
 from db.transactions import Transaction, TransactionEntry
 from models.transactions import TransactionCreate
+from services.accounts import AccountNotFoundException
 
 
 def _validate_entries(entries: list[TransactionCreate]):
@@ -52,13 +54,12 @@ def create_transaction(
 
     try:
         session.commit()
-    except sqlalchemy.exc.IntegrityError:
+    except sqlalchemy.exc.IntegrityError as exc:
         session.rollback()
 
-        raise HTTPException(
-            status_code=400,
-            detail="Attempt to make a transaction on non-existing account.",
-        )
+        match = re.search(r"Key \(account_id\)=\(([^)]+)\)", str(exc.orig))
+        if match:
+            raise AccountNotFoundException(account_id=match.group(1))
     return get_transaction_by_id(session, txn.id)
 
 
@@ -83,7 +84,7 @@ def get_transaction_by_id(session: Session, transaction_id: str) -> dict:
         session.execute(
             select(
                 TransactionEntry.id.label("id"),
-                TransactionEntry.account_id.label("account_id"),
+                TransactionEntry.account_id.label("accountId"),
                 TransactionEntry.type.label("type"),
                 TransactionEntry.amount.label("amount"),
             ).filter(TransactionEntry.transaction_id == transaction_id)
@@ -137,7 +138,7 @@ def list_transactions_by_account_id(
         transactions[tid]["entries"].append(
             {
                 "id": entry["id"],
-                "account_id": entry["account_id"],
+                "accountId": entry["account_id"],
                 "type": entry["type"],
                 "transaction_id": entry["transaction_id"],
                 "amount": entry["amount"],
