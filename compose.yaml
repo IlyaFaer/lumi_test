@@ -6,6 +6,11 @@ services:
         ports:
             - "8000:8000"
         container_name: api
+        environment:
+            # in this test task we provide the address straight,
+            # however, in real case, we should walk around with
+            # environment variables or secrets
+            DB_URL: postgresql+psycopg://postgres:postgres@db_luminary:5432/luminary
         volumes:
             - ./app:/app
         command: uvicorn main:app --host 0.0.0.0 --port 8000

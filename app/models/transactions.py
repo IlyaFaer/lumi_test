@@ -3,13 +3,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, conlist
 
-from db.transactions import MAX_DESC_LEN
+from db.transactions import MAX_DESC_LEN, TransactionType
 
 
 class TransactionEntry(BaseModel):
     accountId: UUID
     amount: Decimal = Field(..., gt=0)
-    type: str
+    type: TransactionType
 
 
 class TransactionCreate(BaseModel):

@@ -60,10 +60,10 @@ def create_transaction(
         match = re.search(r"Key \(account_id\)=\(([^)]+)\)", str(exc.orig))
         if match:
             raise AccountNotFoundException(account_id=match.group(1))
-    return get_transaction_by_id(session, txn.id)
+    return retrieve_transaction(session, txn.id)
 
 
-def get_transaction_by_id(session: Session, transaction_id: str) -> dict:
+def retrieve_transaction(session: Session, transaction_id: str) -> dict:
     """Return a transaction and all of its entries by the given id."""
     txn = (
         session.execute(

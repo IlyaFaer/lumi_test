@@ -1,8 +1,10 @@
 """The basic database functions and dependencies."""
 
-from fastapi import Depends
-from sqlmodel import SQLModel, Session, create_engine
+import os
 from typing import Annotated
+
+from fastapi import Depends
+from sqlmodel import Session, create_engine
 
 from .accounts import Account, AccountType  # noqa: F401
 from .transactions import (  # noqa: F401
@@ -12,12 +14,8 @@ from .transactions import (  # noqa: F401
 )
 
 
-db_url = "postgresql+psycopg://postgres:postgres@db_luminary:5432/luminary"
+db_url = os.environ.get("DB_URL", "sqlite:///./luminary.db")
 engine = create_engine(db_url)
-
-
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
 
 
 def get_session():

@@ -90,7 +90,7 @@ def test_create_transaction(monkeypatch):
         return fake_return
 
     monkeypatch.setattr(
-        transactions, "get_transaction_by_id", get_transaction_by_id_mock
+        transactions, "retrieve_transaction", get_transaction_by_id_mock
     )
 
 
@@ -108,7 +108,7 @@ def test_get_transaction_by_id():
 
     session.execute.side_effect = [exec_ret, exec_ret2]
 
-    res = transactions.get_transaction_by_id(session, "tx-1")
+    res = transactions.retrieve_transaction(session, "tx-1")
     assert res["id"] == "tx-1"
     assert res["description"] == "desc"
     assert res["date"] == ts.isoformat()
